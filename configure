@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# (C) 2012-2015 Fathi Boudra <fathi.boudra@linaro.org>
+# (C) 2015 Rohan Garg <rohan@garg.io>
+
+# Create configuration for live-build.
+
+# You need live-build package installed.
+
+set -e
+set -x
+
+echo "I: create configuration"
+export LB_BOOTSTRAP_INCLUDE="apt-transport-https gnupg initramfs-tools"
+
+# Set Version
+VER=$DIST_RELEASE
+# Set name for image file
+export LIVE_IMAGE_NAME="netrunner-$VER"
+
+_GROUPS="sambashare,cdrom,floppy,audio,dip,video,plugdev,netdev,lpadmin,scanner,bluetooth,adm"
+
+lb config \
+ --archive-areas 'main contrib non-free' \
+ --distribution stable \
+ --binary-images iso-hybrid \
+ --bootappend-live "boot=live hostname=live-pc username=live live-config.user-default-groups=${_GROUPS} apparmor=0 quiet splash" \
+ --mode debian \
+ --security true \
+ --updates false \
+ --apt-source-archives false \
+ --source false \
+ --apt-options "--yes -o Debug::pkgProblemResolver=true -o Debug::pkgDepCache::AutoInstall=true -o Debug::pkgDepCache::Marker=true -o Acquire::Check-Valid-Until=false -o Acquire::Retries=10" \
+ --iso-volume "Netrunner Desktop Final ${VER}" \
+ --debootstrap-options "--include apt-transport-https,ca-certificates,gnupg2" \
+ $@
+
+echo "I: copy customization"
+test -d customization && cp -rf customization/* config/
+
+sed -i "s,@@_VER_@@,${VER},g" config/hooks/live/01-overwrite-release-files.hook.chroot
+
+echo "I: done"
